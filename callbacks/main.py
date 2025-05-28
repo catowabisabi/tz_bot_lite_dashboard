@@ -48,15 +48,17 @@ def register_main_callbacks(app):
                 date_grouped_data[date] = []
             date_grouped_data[date].append(doc)
 
-        # 对每个日期的数据按涨跌幅排序
+        # 对每个日期的数据，先过滤掉 None，再按涨跌幅排序
         for date in date_grouped_data:
-            date_grouped_data[date].sort(
-                key=lambda x: (
-                    x.get('close_change_percentage') is None,
-                    float(x.get('close_change_percentage') or 0)
-                ),
-                reverse=True  # 如果你是想從大到小排
+            filtered_items = [x for x in date_grouped_data[date] if x.get('close_change_percentage') is not None]
+            
+            filtered_items.sort(
+                key=lambda x: float(x['close_change_percentage']),
+                reverse=True  # 從大到小排序
             )
+
+            # 更新排序後的資料回去（如果你希望保留原有資料結構）
+            date_grouped_data[date] = filtered_items
 
         # 路由逻辑
         if pathname.startswith('/stock/'):
