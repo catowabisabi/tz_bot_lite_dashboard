@@ -14,6 +14,22 @@ def get_data(data):
     chart_5m = safe_get(data, '5m_chart_data', [])
     chart_1d = safe_get(data, '1d_chart_data', [])
 
+    def filter_last_hour(chart_data, last_hour=3):
+        if not chart_data:
+            return []
+
+        # 轉換 datetime
+        for item in chart_data:
+            if isinstance(item['datetime'], str):
+                item['datetime'] = datetime.datetime.fromisoformat(item['datetime'])
+
+        # 找出最大時間點（最新時間）
+        latest_time = max(item['datetime'] for item in chart_data)
+        one_hour_ago = latest_time - datetime.timedelta(hours=last_hour)
+
+        # 過濾最後一小時的資料
+        return [item for item in chart_data if one_hour_ago <= item['datetime'] <= latest_time]
+
     def filter_latest_day(chart_data):
         if not chart_data:
             return []
@@ -31,7 +47,7 @@ def get_data(data):
 
     if chart_1d:
         data_dict = {
-            '1min': filter_latest_day(chart_1m),
+            '1min': filter_last_hour(chart_1m),
             '5min': filter_latest_day(chart_5m),
             '1day': chart_1d
         }

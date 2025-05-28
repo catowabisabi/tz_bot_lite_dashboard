@@ -19,7 +19,7 @@ def serialize_mongo_doc(doc):
     else:
         return doc
     
-def create_chart_container(interval='1min', chart_id='chart1', data=None, use_tvlwc=True):
+def create_chart_container(interval='1min', name = "", chart_id='chart1', data=None, use_tvlwc=True):
     from dash import dcc, html
     from dash_tvlwc import Tvlwc
 
@@ -42,7 +42,7 @@ def create_chart_container(interval='1min', chart_id='chart1', data=None, use_tv
         dcc.Store(id=f"data-input-{chart_id}", data=clean_data),
         html.Div([
             html.Div([
-                html.H5(f"{interval.upper()}", className="card-title"),
+                html.H5(f"{name.upper()}", className="card-title"),
              
             ], className="chart-header"),
             html.Div([
@@ -60,13 +60,13 @@ def create_chart_container(interval='1min', chart_id='chart1', data=None, use_tv
 
 def create_row_chart_container(data):
     return html.Div([html.Div([
-            create_chart_container('1min', chart_id='chart1', data=data, use_tvlwc=False),
-            create_chart_container('5min', chart_id='chart2', data=data, use_tvlwc=False),
+            create_chart_container('1min', name = "1 MIN (last 3 hrs)", chart_id='chart1', data=data, use_tvlwc=False),
+            create_chart_container('5min', name = "5 MIN", chart_id='chart2', data=data, use_tvlwc=False),
             
         ], className='row'),
         
         html.Div([
-            create_chart_container('1day', chart_id='chart3', data=data, use_tvlwc=False),
+            create_chart_container('1day', name = "Daily", chart_id='chart3', data=data, use_tvlwc=False),
             
             
         ], className='row'),
