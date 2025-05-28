@@ -23,6 +23,7 @@ def register_main_callbacks(app):
         today = datetime.now(tz).date()
         yesterday = today - timedelta(days=1)
         five_days_ago = today - timedelta(days=5)
+        print(f"Five day ago: {five_days_ago}")
         #five_days_ago_dt = datetime.combine(five_days_ago, datetime.min.time()).replace(tzinfo=timezone.utc)
 
         # 获取最近5天的所有数据
@@ -31,6 +32,8 @@ def register_main_callbacks(app):
             {'today_date': {'$gte': five_days_ago.strftime('%Y-%m-%d')}},
              #{'today_date': {'$gte': five_days_ago_dt}}
         )
+
+        print (f"All recent data: {all_recent_data[0]['close_change_percentage']}")
 
         # 如果没有数据，返回空状态
         if not all_recent_data:
@@ -48,8 +51,11 @@ def register_main_callbacks(app):
         # 对每个日期的数据按涨跌幅排序
         for date in date_grouped_data:
             date_grouped_data[date].sort(
-                key=lambda x: float(x.get('close_change_percentage', -999)),
-                reverse=True
+                key=lambda x: (
+                    x.get('close_change_percentage') is None,
+                    float(x.get('close_change_percentage') or 0)
+                ),
+                reverse=True  # 如果你是想從大到小排
             )
 
         # 路由逻辑
