@@ -1,0 +1,129 @@
+{
+  "_id": {
+    "$oid": "682e41fb266bf4368c67b08a"
+  },
+  "symbol": "NVTS",
+  "annualDividend": null,
+  "atm_urgency": 0,
+  "averageVolume3M": null,
+  "beta": null,
+  "bookValue": null,
+  "close_change_percentage": 50.57,
+  "countryDomicile": null,
+  "countryIncorporation": null,
+  "day_close": 6.64,
+  "day_high": 7.53,
+  "day_low": 4.53,
+  "dividendFrequency": null,
+  "earningsPerShare": null,
+  "earningsPerShareTTM": null,
+  "exDividend": null,
+  "float": null,
+  "float_risk": "Acceptable",
+  "forwardEarningsPerShare": null,
+  "high_change_percentage": 70.75,
+  "hype_score": 0,
+  "industry": null,
+  "isin": null,
+  "key_levels": [
+    7.57,
+    7.59,
+    7.6,
+    7.7,
+    7.74
+  ],
+  "last12MonthDividend": null,
+  "lastDividend": null,
+  "lastSplitDate": null,
+  "lastSplitInfo": null,
+  "listingExchange": null,
+  "lotSize": null,
+  "market_open_high": 5.14,
+  "market_open_low": 4.54,
+  "most_volume_high": 7.13,
+  "most_volume_low": 6.78,
+  "name": null,
+  "nextEarnings": null,
+  "optionable": null,
+  "outstandingShares": null,
+  "premarket_high": 4.8,
+  "premarket_low": 4.44,
+  "sales": null,
+  "sector": null,
+  "securityType": null,
+  "short_signal": false,
+  "squeeze_score": 0,
+  "today_date": "2025-05-27",
+  "turnoverPercentage": null,
+  "yesterday_close": 4.41,
+  "suggestion": "基於您提供的新聞摘要，這裡是我的簡短建議：\n\n風險提醒：\n\n- 近期內，分析師總體情緒偏正面，多數給出看多評級，Rosenblatt證券甚至上調了目標價到6美元。\n- 雖然公司基本面有營收下滑和財務指標較弱的問題，但市場對未來主力產品（超高效氮化鎵半導體）的前景仍存一定期待。\n- 此類利好消息及積極評級有可能刺激短期股價反彈或維持高位。\n\n建議：\n\n**不建議此時做空**，因為消息面正面情緒明顯，短期內股價受利好推動上行的機會較大。建議等待市場熱度消退、正面情緒減退，或者有進一步負面財報、新一輪下調評級再考慮建倉做空。請密切關注後續分析師報告及公司財報數據。",
+  "sec_filing_analysis": {
+    "Symbol": "NVTS",
+    "CIK": "0001821769",
+    "Cash (USD)": 75132000,
+    "Cash": "$75.13M",
+    "Debt (USD)": null,
+    "Debt": "N/A",
+    "Cash/Debt Ratio": "N/A",
+    "Burn Rate (months)": "16.7",
+    "Total Shelf Filings": 3,
+    "Valid Shelf Filings": 3,
+    "Last Shelf Date": "2023-04-26",
+    "ATM Risk Level": "High",
+    "Risk Reason": "Cash/Debt ratio < 10% (0.0%)",
+    "Industry Cash Benchmark": "Above",
+    "Data Date": "2025-05-22",
+    "Trading Recommendation": "Sell/Short-term only",
+    "Recommendation Confidence": "Medium-High",
+    "Recommendation Reasons": [
+      "High ATM risk: Cash/Debt ratio < 10% (0.0%)",
+      "Active shelf registration increases dilution possibility"
+    ],
+    "Trading Strategy": "Day trading only with strict risk management, avoid swing positions",
+    "Short Squeeze Risk": "Low short squeeze risk"
+  },
+  "1d_chart_data": [
+    {
+      "datetime": {
+        "$date": "2021-10-21T00:00:00.000Z"
+      },
+      "open": 13.2,
+      "high": 13.2,
+      "low": 12.635,
+      "close": 12.78,
+      "volume": 714900
+    },
+    {...
+    },...
+  ],
+  "1m_chart_data": [
+    {
+      "datetime": {
+        "$date": "2025-05-23T12:37:00.000Z"
+      },
+      "open": 4.32,
+      "high": 4.34,
+      "low": 4.32,
+      "close": 4.3271,
+      "volume": 208
+    },
+    {...
+    },...
+  ],
+  "5m_chart_data": [
+    {
+      "datetime": {
+        "$date": "2025-05-15T10:25:00.000Z"
+      },
+      "open": 2.015,
+      "high": 2.0299999,
+      "low": 2.0105,
+      "close": 2.025,
+      "volume": 113
+    },
+    {
+     ...
+    },
+    ...
+  ]
+}
