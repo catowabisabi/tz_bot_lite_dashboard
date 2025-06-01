@@ -6,6 +6,7 @@ from dash import dcc, html
 from components.navigation import create_header, create_footer, create_back_button
 from components.charts import  create_cash_debt_chart, create_price_chart_card
 from components.cards import (
+    
     create_metrics_card,
     create_company_info_card,
     create_sec_filing_card,
