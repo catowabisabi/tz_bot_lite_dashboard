@@ -504,8 +504,11 @@ async def add_stock_news(
     try:
         existing_doc = mongo_handler.db[collection_name].find_one(query)
 
-        raw_news_list = existing_doc.get("raw_news", []) if existing_doc else []
-        existing_suggestion = existing_doc.get("suggestion", "None") if existing_doc else "None"
+        if not existing_doc:
+            raise HTTPException(status_code=404, detail=f"找不到對應的股票基本面數據 (Symbol: {symbol.upper()}, Date: {item.date})，無法添加新聞。")
+
+        raw_news_list = existing_doc.get("raw_news", []) # No 'else []' needed due to check above
+        existing_suggestion = existing_doc.get("suggestion", "None") # No 'else "None"' needed
 
         # GPT Summary
         gpt_summarizer = Summarizer()
@@ -536,14 +539,17 @@ async def add_stock_news(
                 "raw_news": raw_news_list,
                 "suggestion": new_suggestion
             }},
-            upsert=True
+            upsert=False # Changed from True to False
         )
 
-        if update_result.modified_count > 0 or update_result.upserted_id:
+        if update_result.modified_count > 0: # Removed 'or update_result.upserted_id'
             return JSONResponse(content={"status": "success", "message": "新聞已成功添加"})
         else:
-            raise HTTPException(status_code=500, detail="添加新聞失敗")
+            # This will be hit if the document was found but not modified (e.g., update data was identical or another issue)
+            raise HTTPException(status_code=500, detail="添加新聞失敗，文檔未被修改。可能數據已存在或更新未生效。")
             
+    except HTTPException as http_exc: # Re-raise HTTPException to preserve its status and detail
+        raise http_exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"添加新聞時發生錯誤: {str(e)}")
 
