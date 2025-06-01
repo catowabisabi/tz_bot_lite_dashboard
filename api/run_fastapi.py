@@ -11,6 +11,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import json
 from bson import json_util
+from bson import ObjectId
 
 # 導入您的 MongoHandler
 from _mongo import MongoHandler  # 假設您的文件名為 paste.py
@@ -481,32 +482,38 @@ async def get_stock_news(
 class NewsItem(BaseModel):
     password: str
     news: str
-    target_document_uuid: str # UUID of the target fundamentals document
+    target_document_id: str # MongoDB ObjectId of the target fundamentals document
 
 @app.post("/api/stocks/{symbol}/add-news")
 async def add_stock_news(
     symbol: str,
     item: NewsItem
 ):
-    """為指定股票的特定文檔添加新聞 (通過文檔UUID定位)"""
-    if item.password != "Abc123456.": # Ensure password includes period
+    """為指定股票的特定文檔添加新聞 (通過文檔 MongoDB _id 定位)"""
+    if item.password != "Abc123456.":
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
     if not mongo_handler.is_connected():
         raise HTTPException(status_code=503, detail="數據庫連接失敗")
 
-    if not item.news or not item.target_document_uuid:
-        raise HTTPException(status_code=400, detail="新聞內容和目標文檔UUID為必填項")
+    if not item.news or not item.target_document_id:
+        raise HTTPException(status_code=400, detail="新聞內容和目標文檔ID為必填項")
+
+    try:
+        # Validate and convert target_document_id to ObjectId
+        target_oid = ObjectId(item.target_document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="目標文檔ID格式無效")
 
     collection_name = "fundamentals_of_top_list_symbols"
-    # Query by symbol and the target document's UUID
-    query = {"symbol": symbol.upper(), "target_document_uuid": item.target_document_uuid}
+    # Query by symbol and the target document's _id
+    query = {"symbol": symbol.upper(), "_id": target_oid}
     
     try:
         existing_doc = mongo_handler.db[collection_name].find_one(query)
 
         if not existing_doc:
-            raise HTTPException(status_code=404, detail=f"找不到對應的股票基本面數據 (Symbol: {symbol.upper()}, Document UUID: {item.target_document_uuid})，無法添加新聞。")
+            raise HTTPException(status_code=404, detail=f"找不到對應的股票基本面數據 (Symbol: {symbol.upper()}, Document ID: {item.target_document_id})，無法添加新聞。")
 
         raw_news_list = existing_doc.get("raw_news", [])
         existing_suggestion = existing_doc.get("suggestion", "None") # No 'else "None"' needed
@@ -556,35 +563,43 @@ async def add_stock_news(
 
 class DeleteNewsItem(BaseModel):
     password: str
-    target_document_uuid: str # UUID of the target fundamentals document
+    target_document_id: str # MongoDB ObjectId of the target fundamentals document
 
 @app.delete("/api/stocks/{symbol}/news/{news_uuid}")
 async def delete_stock_news(
     symbol: str,
-    news_uuid: str,
+    news_uuid: str, # UUID of the specific news item to delete from raw_news
     item: DeleteNewsItem
 ):
-    """刪除指定股票的特定新聞條目"""
-    if item.password != "Abc123456.": # Updated password with a period
+    """刪除指定股票特定文檔中的特定新聞條目 (通過文檔 MongoDB _id 和新聞 UUID 定位)"""
+    if item.password != "Abc123456.":
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
     if not mongo_handler.is_connected():
         raise HTTPException(status_code=503, detail="數據庫連接失敗")
 
+    try:
+        # Validate and convert target_document_id to ObjectId
+        target_oid = ObjectId(item.target_document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="目標文檔ID格式無效")
+
     collection_name = "fundamentals_of_top_list_symbols"
-    # Query by symbol and the target document's UUID
-    query = {"symbol": symbol.upper(), "target_document_uuid": item.target_document_uuid}
+    # Query by symbol and the target document's _id
+    query = {"symbol": symbol.upper(), "_id": target_oid}
 
     try:
         doc = mongo_handler.find_one(collection_name, query)
         if not doc or 'raw_news' not in doc:
-            raise HTTPException(status_code=404, detail=f"找不到股票 {symbol} 在日期 {item.target_document_uuid} 的新聞數據")
+            raise HTTPException(status_code=404, detail=f"找不到股票 {symbol} 對應ID {item.target_document_id} 的新聞數據")
 
         original_news_count = len(doc['raw_news'])
+        # The news_uuid from the path is used here to filter the specific news item
         updated_news = [n for n in doc['raw_news'] if n.get("uuid") != news_uuid]
         
         if len(updated_news) == original_news_count:
-            raise HTTPException(status_code=404, detail=f"找不到 UUID 為 {news_uuid} 的新聞條目")
+            # This means the news_uuid was not found in the raw_news array of the specified document
+            raise HTTPException(status_code=404, detail=f"在文檔ID {item.target_document_id} 中找不到 UUID 為 {news_uuid} 的新聞條目")
 
         update_result = mongo_handler.update_one(
             collection_name,
