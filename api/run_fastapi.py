@@ -21,6 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import base64
+import uuid
+from tz_api.api_news_fetcher import Summarizer
 
 app = FastAPI(
     title="股票數據 API",
@@ -440,6 +442,163 @@ async def get_stock_analysis(
         return JSONResponse(content=serialize_mongo_data(analysis_data))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"查詢錯誤: {str(e)}")
+
+@app.get("/api/stocks/{symbol}/news")
+async def get_stock_news(
+    symbol: str,
+    date: Optional[str] = Query(None, description="日期格式: YYYY-MM-DD")
+):
+    """獲取指定股票的新聞"""
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+
+    query = {"symbol": symbol.upper()}
+    if date:
+        query["today_date"] = date
+    
+    try:
+        # Use projection to fetch only necessary fields
+        projection = {
+            "_id": 0,  # Exclude the default _id field
+            "symbol": 1,
+            "today_date": 1,
+            "raw_news": 1
+        }
+        result = mongo_handler.find_one("fundamentals_of_top_list_symbols", query, projection=projection)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到股票代碼 {symbol} 在日期 {date} 的數據")
+        
+        news_data = result.get("raw_news", [])
+        return JSONResponse(content={
+            "symbol": symbol.upper(),
+            "date": date,
+            "news_count": len(news_data),
+            "news": serialize_mongo_data(news_data)
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查詢新聞錯誤: {str(e)}")
+
+class NewsItem(BaseModel):
+    password: str
+    news: str
+    date: str # YYYY-MM-DD
+
+@app.post("/api/stocks/{symbol}/add-news")
+async def add_stock_news(
+    symbol: str,
+    item: NewsItem
+):
+    """為指定股票添加新聞"""
+    if item.password != "Abc123456.": # Consider using a more secure way to handle passwords
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+
+    if not item.news or not item.date:
+        raise HTTPException(status_code=400, detail="新聞內容和日期為必填項")
+
+    collection_name = "fundamentals_of_top_list_symbols"
+    query = {"symbol": symbol.upper(), "today_date": item.date}
+    
+    try:
+        existing_doc = mongo_handler.db[collection_name].find_one(query)
+
+        raw_news_list = existing_doc.get("raw_news", []) if existing_doc else []
+        existing_suggestion = existing_doc.get("suggestion", "None") if existing_doc else "None"
+
+        # GPT Summary
+        gpt_summarizer = Summarizer()
+        summary = gpt_summarizer.summarize(item.news)
+
+        news_entry = {
+            "uuid": str(uuid.uuid4()),
+            "text": item.news,
+            "summary": summary,
+            "timestamp": datetime.now(ZoneInfo("America/New_York")).isoformat()
+        }
+        raw_news_list.append(news_entry)
+
+        prompt_for_suggestion = f"""
+    新的新聞 (New News):
+    {summary}
+
+    原有的總結 (Original Summary):
+    {existing_suggestion}
+
+    請為這則新聞提供建議 (Please provide suggestions for this input):
+    """
+        new_suggestion = gpt_summarizer.suggestion(prompt_for_suggestion)
+
+        update_result = mongo_handler.db[collection_name].update_one(
+            query,
+            {"$set": {
+                "raw_news": raw_news_list,
+                "suggestion": new_suggestion
+            }},
+            upsert=True
+        )
+
+        if update_result.modified_count > 0 or update_result.upserted_id:
+            return JSONResponse(content={"status": "success", "message": "新聞已成功添加"})
+        else:
+            raise HTTPException(status_code=500, detail="添加新聞失敗")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"添加新聞時發生錯誤: {str(e)}")
+
+class DeleteNewsItem(BaseModel):
+    password: str
+    date: str # YYYY-MM-DD
+
+@app.delete("/api/stocks/{symbol}/news/{news_uuid}")
+async def delete_stock_news(
+    symbol: str,
+    news_uuid: str,
+    item: DeleteNewsItem
+):
+    """刪除指定股票的特定新聞條目"""
+    if item.password != "Abc123456": # Consider using a more secure way to handle passwords
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+
+    collection_name = "fundamentals_of_top_list_symbols"
+    query = {"symbol": symbol.upper(), "today_date": item.date}
+
+    try:
+        doc = mongo_handler.find_one(collection_name, query)
+        if not doc or 'raw_news' not in doc:
+            raise HTTPException(status_code=404, detail=f"找不到股票 {symbol} 在日期 {item.date} 的新聞數據")
+
+        original_news_count = len(doc['raw_news'])
+        updated_news = [n for n in doc['raw_news'] if n.get("uuid") != news_uuid]
+        
+        if len(updated_news) == original_news_count:
+            raise HTTPException(status_code=404, detail=f"找不到 UUID 為 {news_uuid} 的新聞條目")
+
+        update_result = mongo_handler.update_one(
+            collection_name,
+            query,
+            {"raw_news": updated_news}
+        )
+
+        if update_result and update_result.get('modified_count', 0) > 0:
+            return JSONResponse(content={"status": "success", "message": "新聞已成功刪除"})
+        else:
+            # This case might happen if the document was found but the news item was already deleted by another process
+            # or if the update operation itself failed for some reason.
+            existing_doc_after_attempt = mongo_handler.find_one(collection_name, query)
+            if existing_doc_after_attempt and any(n.get("uuid") == news_uuid for n in existing_doc_after_attempt.get('raw_news', [])):
+                raise HTTPException(status_code=500, detail="刪除新聞失敗，請重試")
+            else: # Already deleted or never existed post initial check, but update_one reported no modification
+                 return JSONResponse(content={"status": "success", "message": "新聞先前已被刪除或未找到"})
+
+    except HTTPException as e:
+        raise e # Re-raise HTTPException to preserve status code and detail
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"刪除新聞時發生錯誤: {str(e)}")
 
 if __name__ == "__main__":
     # 檢查數據庫連接
