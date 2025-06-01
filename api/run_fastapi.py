@@ -564,7 +564,7 @@ async def delete_stock_news(
     item: DeleteNewsItem
 ):
     """刪除指定股票的特定新聞條目"""
-    if item.password != "Abc123456": # Consider using a more secure way to handle passwords
+    if item.password != "Abc123456.": # Updated password with a period
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
     if not mongo_handler.is_connected():
