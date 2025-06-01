@@ -260,7 +260,8 @@ async def get_stocks(
                 "day_low": 1,
                 "today_date": 1,
                 "float_risk": 1,
-                "short_signal": 1
+                "short_signal": 1,
+                "sector":1
             }}
         ]
         
