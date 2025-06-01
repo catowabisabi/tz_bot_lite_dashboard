@@ -3,7 +3,7 @@ from utils.helpers import safe_get, safe_float
 from utils.style import colors
 
 # region Metrics Card
-def create_metrics_card(data, market_cap_formatted):
+def create_ics_cardmetr(data, market_cap_formatted):
     change_percentage = safe_float(data.get('close_change_percentage'), 0)
     change_color = colors['positive'] if change_percentage >= 0 else colors['negative']
     

@@ -192,6 +192,47 @@ async def get_stock_by_symbol(
         return JSONResponse(content=serialized_result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"查詢錯誤: {str(e)}")
+    
+@app.get("/stocks/{symbol}/fundamentals")
+async def get_stock_fundamentals(
+    symbol: str,
+    date: Optional[str] = Query(None, description="日期格式: YYYY-MM-DD")
+):
+    """獲取股票基本面數據 (不包含圖表數據)"""
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+    
+    query = {"symbol": symbol.upper()}
+    if date:
+        query["today_date"] = date
+    
+    try:
+        # 使用 projection 排除圖表數據欄位
+        projection = {
+            "1d_chart_data": 0,
+            "1m_chart_data": 0, 
+            "5m_chart_data": 0
+        }
+        
+        result = mongo_handler.find_one(
+            "fundamentals_of_top_list_symbols", 
+            query, 
+            projection=projection
+        )
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"找不到股票代碼 {symbol} 的數據")
+        
+        # 序列化並格式化市值
+        serialized_result = serialize_mongo_data(result)
+        market_cap_float = result.get('market_cap_float')
+        if market_cap_float:
+            serialized_result['market_cap_formatted'] = format_market_cap(market_cap_float)
+        
+        return JSONResponse(content=serialized_result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查詢錯誤: {str(e)}")
 
 @app.get("/stocks/")
 async def get_stocks(
