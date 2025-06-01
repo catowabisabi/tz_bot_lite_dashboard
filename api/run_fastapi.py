@@ -207,18 +207,13 @@ async def get_stock_fundamentals(
         query["today_date"] = date
     
     try:
-        # 使用 projection 排除圖表數據欄位
+        # 使用 projection 排除圖表數據
         projection = {
             "1d_chart_data": 0,
-            "1m_chart_data": 0, 
+            "1m_chart_data": 0,
             "5m_chart_data": 0
         }
-        
-        result = mongo_handler.find_one(
-            "fundamentals_of_top_list_symbols", 
-            query, 
-            projection=projection
-        )
+        result = mongo_handler.find_one("fundamentals_of_top_list_symbols", query, projection)
         
         if not result:
             raise HTTPException(status_code=404, detail=f"找不到股票代碼 {symbol} 的數據")

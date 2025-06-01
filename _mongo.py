@@ -180,7 +180,7 @@ class MongoHandler:
         
 
     #region Find One
-    def find_one(self, collection_name, query):
+    def find_one(self, collection_name, query, projection=None):
         print(f"Finding one in {collection_name} with query: {query}")
         """查找单个文档"""
         if not self.is_connected():
@@ -188,7 +188,10 @@ class MongoHandler:
         if collection_name not in self.db.list_collection_names():
             return None
         try:
-            return self.db[collection_name].find_one(query)
+            if projection:
+                return self.db[collection_name].find_one(query, projection)
+            else:
+                return self.db[collection_name].find_one(query)
         except Exception as e:
             print(f"Find one error: {e}")
             return None
