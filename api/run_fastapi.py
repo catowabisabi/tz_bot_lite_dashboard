@@ -623,6 +623,132 @@ async def delete_stock_news(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"刪除新聞時發生錯誤: {str(e)}")
 
+@app.get("/api/stocks/latest_day")
+async def get_latest_day_stocks(
+    limit: int = Query(50, ge=1, le=500, description="返回結果數量限制"),
+    skip: int = Query(0, ge=0, description="跳過的結果數量")
+):
+    """獲取最新交易日的所有股票數據"""
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+
+    try:
+        # 1. Find the latest date
+        latest_entry = mongo_handler.db["fundamentals_of_top_list_symbols"].find_one(
+            sort=[("today_date", -1)], 
+            projection={"today_date": 1}
+        )
+        if not latest_entry or "today_date" not in latest_entry:
+            raise HTTPException(status_code=404, detail="數據庫中找不到任何股票數據")
+        
+        latest_date = latest_entry["today_date"]
+
+        # 2. Fetch all stocks for that latest date with pagination
+        query = {"today_date": latest_date}
+        pipeline = [
+            {"$match": query},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": {
+                "symbol": 1,
+                "name": 1,
+                "day_close": 1,
+                "yesterday_close": 1,
+                "close_change_percentage": 1,
+                "high_change_percentage": 1,
+                "day_high": 1,
+                "day_low": 1,
+                "today_date": 1,
+                "float_risk": 1,
+                "short_signal": 1,
+                "sector": 1
+            }}
+        ]
+        
+        collection = mongo_handler.db["fundamentals_of_top_list_symbols"]
+        results = list(collection.aggregate(pipeline))
+        
+        # Get total count for this date for pagination metadata
+        total_count_for_date = collection.count_documents(query)
+
+        return JSONResponse(content={
+            "latest_date_retrieved": latest_date,
+            "total_for_date": total_count_for_date,
+            "count_in_response": len(results),
+            "skip": skip,
+            "limit": limit,
+            "data": serialize_mongo_data(results)
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查詢最新股票數據錯誤: {str(e)}")
+
+@app.get("/api/stocks/by_date")
+async def get_stocks_by_date(
+    date: str = Query(..., description="日期格式: YYYY-MM-DD (必填)"),
+    limit: int = Query(50, ge=1, le=500, description="返回結果數量限制"),
+    skip: int = Query(0, ge=0, description="跳過的結果數量")
+):
+    """根據指定日期查詢股票列表"""
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+    
+    # Basic validation for date format (more robust validation might be needed)
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式無效，請使用 YYYY-MM-DD")
+
+    query = {"today_date": date}
+    
+    try:
+        pipeline = [
+            {"$match": query},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": { # Using the same projection as /stocks/ and /latest_day for consistency
+                "symbol": 1,
+                "name": 1,
+                "day_close": 1,
+                "yesterday_close": 1,
+                "close_change_percentage": 1,
+                "high_change_percentage": 1,
+                "day_high": 1,
+                "day_low": 1,
+                "today_date": 1,
+                "float_risk": 1,
+                "short_signal": 1,
+                "sector": 1
+            }}
+        ]
+        
+        collection = mongo_handler.db["fundamentals_of_top_list_symbols"]
+        results = list(collection.aggregate(pipeline))
+        
+        # Get total count for this date for pagination metadata
+        total_count_for_date = collection.count_documents(query)
+
+        if total_count_for_date == 0 and not results:
+             # Check if any data exists for this date to give a more specific 404
+            return JSONResponse(
+                status_code=404, 
+                content={
+                    "message": f"在日期 {date} 找不到任何股票數據",
+                    "date_queried": date,
+                    "data": []
+                }
+            )
+
+        return JSONResponse(content={
+            "date_queried": date,
+            "total_for_date": total_count_for_date,
+            "count_in_response": len(results),
+            "skip": skip,
+            "limit": limit,
+            "data": serialize_mongo_data(results)
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"根據日期 {date} 查詢股票數據時發生錯誤: {str(e)}")
+
 if __name__ == "__main__":
     # 檢查數據庫連接
     if not mongo_handler.is_connected():
