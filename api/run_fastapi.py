@@ -749,6 +749,42 @@ async def get_stocks_by_date(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"根據日期 {date} 查詢股票數據時發生錯誤: {str(e)}")
 
+@app.get("/api/stocks/available_dates")
+async def get_available_dates():
+    """獲取所有可用的交易日期列表"""
+    if not mongo_handler.is_connected():
+        raise HTTPException(status_code=503, detail="數據庫連接失敗")
+    
+    try:
+        # Use MongoDB aggregation to get unique dates and sort them
+        pipeline = [
+            {"$group": {"_id": "$today_date"}},
+            {"$sort": {"_id": -1}},  # Sort in descending order (newest first)
+            {"$project": {
+                "_id": 0,
+                "date": "$_id"
+            }}
+        ]
+        
+        collection = mongo_handler.db["fundamentals_of_top_list_symbols"]
+        dates = list(collection.aggregate(pipeline))
+        
+        if not dates:
+            return JSONResponse(content={
+                "message": "找不到任何交易日期",
+                "dates": []
+            })
+
+        # Extract just the date strings from the aggregation result
+        date_list = [item["date"] for item in dates]
+        
+        return JSONResponse(content={
+            "total_dates": len(date_list),
+            "dates": date_list
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取可用日期列表時發生錯誤: {str(e)}")
+
 if __name__ == "__main__":
     # 檢查數據庫連接
     if not mongo_handler.is_connected():
